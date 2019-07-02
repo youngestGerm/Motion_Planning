@@ -1,25 +1,25 @@
 import argparse
 import time
 import msgpack
-from enum import Enum, auto
+from enum import Enum
 
 import numpy as np
 
-from planning_utils import a_star, heuristic, create_grid
+from planning_utils import a_star, heuristic, create_grid, collinearity_prune
 from udacidrone import Drone
 from udacidrone.connection import MavlinkConnection
 from udacidrone.messaging import MsgID
 from udacidrone.frame_utils import global_to_local
-
+import re
 
 class States(Enum):
-    MANUAL = auto()
-    ARMING = auto()
-    TAKEOFF = auto()
-    WAYPOINT = auto()
-    LANDING = auto()
-    DISARMING = auto()
-    PLANNING = auto()
+    MANUAL = 1
+    ARMING = 2
+    TAKEOFF = 3
+    WAYPOINT = 4
+    LANDING = 5
+    DISARMING = 6
+    PLANNING = 7
 
 
 class MotionPlanning(Drone):
@@ -51,6 +51,8 @@ class MotionPlanning(Drone):
                 else:
                     if np.linalg.norm(self.local_velocity[0:2]) < 1.0:
                         self.landing_transition()
+        print("global position: {0}, local position: {1}".format(self.global_position, self.local_position))
+
 
     def velocity_callback(self):
         if self.flight_state == States.LANDING:
@@ -64,6 +66,7 @@ class MotionPlanning(Drone):
                 self.arming_transition()
             elif self.flight_state == States.ARMING:
                 if self.armed:
+                    print('armed')
                     self.plan_path()
             elif self.flight_state == States.PLANNING:
                 self.takeoff_transition()
@@ -120,35 +123,53 @@ class MotionPlanning(Drone):
         self.target_position[2] = TARGET_ALTITUDE
 
         # TODO: read lat0, lon0 from colliders into floating point values
-        
+        colliders = open('colliders.csv')
+        lat_long = colliders.readline()
+
+        lat = float(re.search("lat0 (.*),", lat_long).group(1))
+        lon = float(re.search("lon0 (.*)", lat_long).group(1))
+
         # TODO: set home position to (lon0, lat0, 0)
+        self.set_home_position(lon, lat, 0)
 
         # TODO: retrieve current global position
- 
         # TODO: convert to current local position using global_to_local()
+        current_north, current_east, current_down = global_to_local(self.global_position, self.global_home)
+
+        #Prints
+        print('global home {0}, position {1}, local position {2}'.format(self.global_home, self.global_position, self.local_position))
+        print('north {0}, east {1}, down {2}'.format(current_north, current_east, current_down))
         
-        print('global home {0}, position {1}, local position {2}'.format(self.global_home, self.global_position,
-                                                                         self.local_position))
         # Read in obstacle map
         data = np.loadtxt('colliders.csv', delimiter=',', dtype='Float64', skiprows=2)
         
         # Define a grid for a particular altitude and safety margin around obstacles
         grid, north_offset, east_offset = create_grid(data, TARGET_ALTITUDE, SAFETY_DISTANCE)
-        print("North offset = {0}, east offset = {1}".format(north_offset, east_offset))
-        # Define starting point on the grid (this is just grid center)
-        grid_start = (-north_offset, -east_offset)
-        # TODO: convert start position to current position rather than map center
+        # print("North offset = {0}, east offset = {1}".format(north_offset, east_offset))
         
+        # Define starting point on the grid (this is just grid center)
+        grid_start_north = int(np.ceil(local_north - north_offset))
+        grid_start_east = int(np.ceil(local_east - east_offset))
+        grid_start = (grid_start_north, grid_start_east)
+        print("grid start {0}".format(grid_start))
+        
+
+        # TODO: convert start position to current position rather than map center
         # Set goal as some arbitrary position on the grid
-        grid_goal = (-north_offset + 10, -east_offset + 10)
+        goal_north, goal_east, goal_alt = global_to_local(self.goal_global_position, self.global_home)
+        grid_goal = (int(np.ceil(goal_north - north_offset)), int(np.ceil(goal_east - east_offset)))
         # TODO: adapt to set goal as latitude / longitude position and convert
+
 
         # Run A* to find a path from start to goal
         # TODO: add diagonal motions with a cost of sqrt(2) to your A* implementation
         # or move to a different search space such as a graph (not done here)
+        
         print('Local Start and Goal: ', grid_start, grid_goal)
-        path, _ = a_star(grid, heuristic, grid_start, grid_goal)
+        path, cost = a_star(grid, heuristic, grid_start, grid_goal)
         # TODO: prune path to minimize number of waypoints
+        path = collinearity_prune(path)
+        
         # TODO (if you're feeling ambitious): Try a different approach altogether!
 
         # Convert path to waypoints

@@ -144,3 +144,30 @@ def a_star(grid, h, start, goal):
 def heuristic(position, goal_position):
     return np.linalg.norm(np.array(position) - np.array(goal_position))
 
+def collinearity_prune(path, epsilon=1e-5):
+    index = 0
+    newArrayToNPArray = path
+    
+    #return a tuple that contains the first two coordinate and a 1
+    def point(coordinates):
+        return np.array([coordinates[0], coordinates[1], 1.])
+        
+    def returnArray(i):
+        newArray0 = point(newArrayToNPArray[i])
+        newArray1 = point(newArrayToNPArray[i + 1])
+        newArray2 = point(newArrayToNPArray[i + 2])
+        combineArrays = np.array([newArray0, newArray1, newArray2])
+        return combineArrays
+        
+
+    while index < len(newArrayToNPArray) - 2:
+    
+        determinant = np.linalg.det(returnArray(index))
+
+        if abs(determinant) < epsilon:
+            print("hit", index, newArrayToNPArray[index])
+            newArrayToNPArray = np.delete(newArrayToNPArray, index + 1, 0)
+        else:            
+            index += 1
+    
+    return newArrayToNPArray
