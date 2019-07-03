@@ -137,7 +137,6 @@ class MotionPlanning(Drone):
         current_north, current_east, current_down = global_to_local(self.global_position, self.global_home)
 
         #Prints
-        print('global home {0}, position {1}, local position {2}'.format(self.global_home, self.global_position, self.local_position))
         print('north {0}, east {1}, down {2}'.format(current_north, current_east, current_down))
         
         # Read in obstacle map
@@ -148,30 +147,29 @@ class MotionPlanning(Drone):
         # print("North offset = {0}, east offset = {1}".format(north_offset, east_offset))
         
         # Define starting point on the grid (this is just grid center)
-        grid_start_north = int(np.ceil(local_north - north_offset))
-        grid_start_east = int(np.ceil(local_east - east_offset))
-        grid_start = (grid_start_north, grid_start_east)
-        print("grid start {0}".format(grid_start))
-        
+        grid_start = (-north_offset, -east_offset)        
 
         # TODO: convert start position to current position rather than map center
         # Set goal as some arbitrary position on the grid
-        goal_north, goal_east, goal_alt = global_to_local(self.goal_global_position, self.global_home)
-        grid_goal = (int(np.ceil(goal_north - north_offset)), int(np.ceil(goal_east - east_offset)))
+        grid_goal = (-north_offset + 10, -east_offset + 10)
         # TODO: adapt to set goal as latitude / longitude position and convert
 
 
         # Run A* to find a path from start to goal
         # TODO: add diagonal motions with a cost of sqrt(2) to your A* implementation
         # or move to a different search space such as a graph (not done here)
-        
+        import time
+        t1 = time.time()
+
         print('Local Start and Goal: ', grid_start, grid_goal)
-        path, cost = a_star(grid, heuristic, grid_start, grid_goal)
+        path, _ = a_star(grid, heuristic, grid_start, grid_goal)
         # TODO: prune path to minimize number of waypoints
         path = collinearity_prune(path)
-        
-        # TODO (if you're feeling ambitious): Try a different approach altogether!
+        t_3D = time.time() - t1
+        print("time it took to load a* and collinearity", t_3D)
 
+        # TODO (if you're feeling ambitious): Try a different approach altogether!
+        
         # Convert path to waypoints
         waypoints = [[p[0] + north_offset, p[1] + east_offset, TARGET_ALTITUDE, 0] for p in path]
         # Set self.waypoints

@@ -165,7 +165,7 @@ def collinearity_prune(path, epsilon=1e-5):
         determinant = np.linalg.det(returnArray(index))
 
         if abs(determinant) < epsilon:
-            print("hit", index, newArrayToNPArray[index])
+            # print("hit", index, newArrayToNPArray[index])
             newArrayToNPArray = np.delete(newArrayToNPArray, index + 1, 0)
         else:            
             index += 1
