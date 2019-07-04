@@ -1,7 +1,7 @@
 from enum import Enum
 from queue import PriorityQueue
 import numpy as np
-
+from math import sqrt
 
 def create_grid(data, drone_altitude, safety_distance):
     """
@@ -22,7 +22,7 @@ def create_grid(data, drone_altitude, safety_distance):
     # calculate the size of the grid.
     north_size = int(np.ceil(north_max - north_min))
     east_size = int(np.ceil(east_max - east_min))
-
+ 
     # Initialize an empty grid
     grid = np.zeros((north_size, east_size))
 
@@ -55,6 +55,10 @@ class Action(Enum):
     EAST = (0, 1, 1)
     NORTH = (-1, 0, 1)
     SOUTH = (1, 0, 1)
+    NORTH_EAST = (-1, 1, sqrt(2))
+    NORTH_WEST = (-1, -1, sqrt(2))
+    SOUTH_EAST = (1, 1, sqrt(2))
+    SOUTH_WEST = (1, -1, sqrt(2))
 
     @property
     def cost(self):
@@ -72,7 +76,6 @@ def valid_actions(grid, current_node):
     valid_actions = list(Action)
     n, m = grid.shape[0] - 1, grid.shape[1] - 1
     x, y = current_node
-
     # check if the node is off the grid or
     # it's an obstacle
 
@@ -84,7 +87,15 @@ def valid_actions(grid, current_node):
         valid_actions.remove(Action.WEST)
     if y + 1 > m or grid[x, y + 1] == 1:
         valid_actions.remove(Action.EAST)
-
+    if x + 1 > n or y + 1 > m or grid[x + 1, y + 1] == 1:
+        valid_actions.remove(Action.SOUTH_EAST)
+    if x - 1 < 0 or y + 1 > m or grid[x - 1, y + 1] == 1:
+        valid_actions.remove(Action.NORTH_EAST)
+    if x + 1 > n or y - 1 < 0 or grid[x + 1, y - 1] == 1:
+        valid_actions.remove(Action.SOUTH_WEST)
+    if x - 1 < 0 or y - 1 < 0 or grid[x - 1, y - 1] == 1:
+        valid_actions.remove(Action.NORTH_WEST)
+    
     return valid_actions
 
 
